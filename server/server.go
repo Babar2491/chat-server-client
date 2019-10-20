@@ -1,7 +1,6 @@
 package main
 
-import
-(
+import (
 	"bufio"
 	"flag"
 	"fmt"
@@ -18,22 +17,21 @@ var version string = "1.0.0"
 var mu sync.Mutex
 var allClients []Client
 
-
-type Client struct{
+type Client struct {
 	conn net.Conn
 	nick string
 }
 
-func (c *Client) readMessages(){
+func (c *Client) readMessages() {
 	reader := bufio.NewReader(c.conn)
 	for {
 		data, err := reader.ReadString('\n')
-		if err != nil{
+		if err != nil {
 			if err == io.EOF {
 				var identity string
 				if len(c.nick) > 1 {
 					identity = c.nick
-				}else{
+				} else {
 					identity = c.conn.RemoteAddr().String()
 				}
 				log.Printf("Client %s has disconnected", identity)
@@ -55,15 +53,15 @@ func (c *Client) readMessages(){
 			continue
 		}
 
-		data = data[:len(data) - 1]
-		if strings.HasPrefix(data, "NICK "){
+		data = data[:len(data)-1]
+		if strings.HasPrefix(data, "NICK ") {
 			nick := data[5:]
 			var validNick = regexp.MustCompile(`^[A-Za-z0-9\\_]+$`)
-			if ! validNick.MatchString(nick){
+			if !validNick.MatchString(nick) {
 				_ = c.sendMessage("Nick must only have characters (A-Za-z0-9\\_)")
 				continue
 			}
-			if len(nick) > 12{
+			if len(nick) > 12 {
 				_ = c.sendMessage("Nick must only have 12 characters)")
 				continue
 			}
@@ -87,8 +85,8 @@ func (c *Client) readMessages(){
 
 }
 
-func (c *Client) sendMessage(msg string) error{
-	if msg[len(msg) - 1:] != "\n"{
+func (c *Client) sendMessage(msg string) error {
+	if msg[len(msg)-1:] != "\n" {
 		msg += "\n"
 	}
 	_, err := c.conn.Write([]byte(msg))
@@ -101,7 +99,7 @@ func main() {
 
 	log.Println("Starting server on Port: " + strconv.Itoa(*port))
 
-	ln, err := net.Listen("tcp4", ":" + strconv.Itoa(*port))
+	ln, err := net.Listen("tcp4", ":"+strconv.Itoa(*port))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -121,26 +119,26 @@ func main() {
 	}
 }
 
-func registerClient(conn net.Conn){
-	client := Client{conn:conn}
+func registerClient(conn net.Conn) {
+	client := Client{conn: conn}
 	mu.Lock()
 	allClients = append(allClients, client)
 	mu.Unlock()
 	err := client.sendMessage("Hello " + version)
-	if err!= nil{
+	if err != nil {
 		fmt.Println(err)
 	}
 	go client.readMessages()
 }
 
-func broadcastMessage(msg string){
+func broadcastMessage(msg string) {
 	mu.Lock()
 	clients := make([]Client, len(allClients))
 	copy(clients, allClients)
 	fmt.Printf("Number of clients now: %d", len(clients))
 	mu.Unlock()
 
-	for _, client := range clients{
+	for _, client := range clients {
 		_ = client.sendMessage(msg)
 	}
 }
