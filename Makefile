@@ -1,0 +1,11 @@
+GOCMD=go
+GOBUILD=$(GOCMD) build
+BASEPATH=$(shell pwd)
+SERVER_CODE_PATH="$(BASEPATH)/server"
+CLIENT_CODE_PATH="$(BASEPATH)/client"
+SERVER_BINARY_NAME="$(BASEPATH)/chatserver"
+CLIENT_BINARY_NAME="$(BASEPATH)/chatclient"
+
+install:
+        cd $(SERVER_CODE_PATH) && $(GOBUILD) -o $(SERVER_BINARY_NAME)
+        cd $(CLIENT_CODE_PATH) && $(GOBUILD) -o $(CLIENT_BINARY_NAME)
