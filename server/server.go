@@ -13,9 +13,9 @@ import (
 	"sync"
 )
 
-var version string = "1.0.0"
+var version = "1"
 var mu sync.Mutex
-var allClients []Client
+var allClients []*Client
 
 type Client struct {
 	conn net.Conn
@@ -37,13 +37,18 @@ func (c *Client) readMessages() {
 				log.Printf("Client %s has disconnected", identity)
 				var i int
 				for i = range allClients {
-					if allClients[i] == *c {
+					if allClients[i] == c {
 						break
 					}
 				}
 				mu.Lock()
 				allClients = append(allClients[:i], allClients[i+1:]...)
 				fmt.Printf("Number of clients now: %d", len(allClients))
+				for i = range allClients {
+					fmt.Println("***************")
+					fmt.Println(allClients[i].nick)
+					fmt.Println("***************")
+				}
 				mu.Unlock()
 				return
 			}
@@ -58,27 +63,27 @@ func (c *Client) readMessages() {
 			nick := data[5:]
 			var validNick = regexp.MustCompile(`^[A-Za-z0-9\\_]+$`)
 			if !validNick.MatchString(nick) {
-				_ = c.sendMessage("Nick must only have characters (A-Za-z0-9\\_)")
+				_ = c.sendMessage("ERROR Nick must only have characters (A-Za-z0-9\\_)")
 				continue
 			}
 			if len(nick) > 12 {
-				_ = c.sendMessage("Nick must only have 12 characters)")
+				_ = c.sendMessage("ERROR Nick must only have 12 characters)")
 				continue
 			}
 			c.nick = nick
 			_ = c.sendMessage("OK")
 		} else if strings.HasPrefix(data, "MSG ") {
 			if len(c.nick) == 0 {
-				_ = c.sendMessage("Error: No nick set")
+				_ = c.sendMessage("ERROR no nick set")
 				continue
 			}
 			if len(data[4:]) > 255 {
-				_ = c.sendMessage("Error: Message length should be <= 255")
+				_ = c.sendMessage("ERROR message length should be <= 255")
 			}
 			broadcastMessage(data[:4] + c.nick + data[3:])
 		} else {
 			log.Println(data)
-			_ = c.sendMessage("Error: malformed data")
+			_ = c.sendMessage("ERROR malformed command")
 		}
 		log.Println(data)
 	}
@@ -122,7 +127,7 @@ func main() {
 func registerClient(conn net.Conn) {
 	client := Client{conn: conn}
 	mu.Lock()
-	allClients = append(allClients, client)
+	allClients = append(allClients, &client)
 	mu.Unlock()
 	err := client.sendMessage("Hello " + version)
 	if err != nil {
@@ -132,11 +137,11 @@ func registerClient(conn net.Conn) {
 }
 
 func broadcastMessage(msg string) {
+	clients := make([]*Client, len(allClients))
 	mu.Lock()
-	clients := make([]Client, len(allClients))
 	copy(clients, allClients)
-	fmt.Printf("Number of clients now: %d", len(clients))
 	mu.Unlock()
+	fmt.Printf("Number of clients now: %d", len(clients))
 
 	for _, client := range clients {
 		_ = client.sendMessage(msg)
